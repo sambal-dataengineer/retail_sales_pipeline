@@ -1,0 +1,10 @@
+\i sql/gold/00_create_gold_schema.sql
+\i sql/gold/01_daily_sales_summary.sql
+\i sql/gold/02_product_performance.sql
+\i sql/gold/03_monthly_trends.sql
+\i sql/gold/04_payment_analysis.sql
+\i sql/gold/05_category_analysis.sql
+\i sql/gold/06_location_analysis.sql
+\i sql/gold/07_discount_analysis.sql
+\i sql/gold/08_customer_analysis.sql
+\i sql/gold/09_ml_features.sql

@@ -1,26 +1,43 @@
 import pandas as pd
 import numpy as np
+from sqlalchemy import create_engine, text
 
 # =========================================================
-# FILE PATHS
+# DATABASE CONFIGURATION
 # =========================================================
+username = "postgres"
+password = "root"
+host = "localhost"
+port = "5432"
+database = "retail_sales_project"
 
-file_path = r"C:\Users\samba\OneDrive\Desktop\Data_Engineer\retail_store_sales_pipeline_project\01. data/retail_store_sales.csv"
 
 # =========================================================
-# LOAD RAW DATA
+# CREATE DATABASE ENGINE
 # =========================================================
+engine = create_engine(
+    f"postgresql://{username}:{password}@{host}:{port}/{database}"
+)
 
+
+# =========================================================
+# LOAD DATA FROM BRONZE
+# =========================================================
 print("=" * 60)
-print("Loading Raw Data")
+print("Loading data from bronze")
 print("=" * 60)
 
-df = pd.read_csv(file_path)
+query = "SELECT * FROM bronze.raw_retail_sales;"
 
-print("\nRaw dataset loaded successfully.")
-print(f"Raw shape: {df.shape}")
+df = pd.read_sql(query, engine)
 
-print("\nFirst 10 rows:")
+print("\nBronze data loaded successfully.")
+print(f"shape: {df.shape}")
+
+print("\nColumns:")
+print(df.columns.tolist())
+
+print("\nFirst 10 rows")
 print(df.head(10))
 
 print("\nRaw Data types:")
@@ -29,7 +46,7 @@ print(df.dtypes)
 print("\nRaw info:")
 print(df.info())
 
-print("\nRaw full desciption:")
+print("\nRaw full description:")
 print(df.describe(include = 'all'))
 
 print("\nMissing Values before cleaning:")
@@ -39,11 +56,10 @@ print("\nDuplicate rows before cleaning:")
 print(df.duplicated().sum())
 
 # =========================================================
-# MAKE A WORKING COPY
+# CREATE WORKING COPY
 # =========================================================
-
 print("\n" + "=" * 60)
-print("Creating Working Copy")
+print("Creating working copy")
 print("=" * 60)
 
 clean_df = df.copy()
@@ -54,9 +70,8 @@ print(f"Working shape: {clean_df.shape}")
 # =========================================================
 # CREATE DATA QUALITY FLAGS
 # =========================================================
-# These flags preserve the original missingness information.
-# Even if we later fill a value, we still know that the raw file had an issue.
-
+# These are used only temporarily during transformation.
+# They will be removed before loading to Silver.
 print("\n" + "=" * 60)
 print("Creating Data Quality Flags")
 print("=" * 60)
@@ -67,8 +82,8 @@ clean_df['quantity_missing_flag'] = clean_df['Quantity'].isna()
 clean_df['total_missing_flag'] = clean_df['Total Spent'].isna()
 clean_df['discount_missing_flag'] = clean_df['Discount Applied'].isna()
 
-print("\nData quality flags added.")
-print("\nFlag summary:")
+print("\nData quality flags created.")
+print("\nFlag Summary:")
 print(clean_df[
     [
         'item_missing_flag',
@@ -82,8 +97,6 @@ print(clean_df[
 # =========================================================
 # STANDARDIZE TEXT COLUMNS
 # =========================================================
-# We strip extra spaces from text columns.
-
 print("\n" + "=" * 60)
 print("Standardizing Text Columns")
 print("=" * 60)
@@ -101,7 +114,7 @@ for col in text_columns:
     clean_df[col] = clean_df[col].astype("string").str.strip()
 
 print("\nText columns standardized.")
-print("\nSample values after text standardizstion")
+print("\nSample values after text standardization")
 for col in text_columns:
     print(f"\nColumn: {col}")
     print(clean_df[col].dropna().unique()[:5])
@@ -109,26 +122,24 @@ for col in text_columns:
 # =========================================================
 # CONVERT DATE COLUMN
 # =========================================================
-
 print("\n" + "=" * 60)
 print("Converting Transaction Date")
 print("=" * 60)
 
 clean_df['Transaction Date'] = pd.to_datetime(
-    clean_df['Transaction Date'],
+    clean_df["Transaction Date"],
     format = 'mixed',
     dayfirst = True,
     errors = 'coerce'
 )
 
 print("\nTransaction Date converted to datetime.")
-print("\ Date range after conversion:")
-print(clean_df['Transaction Date'].min(), "to", clean_df['Transaction Date'].max())
-
+print("\nDate Range after conversion:")
+print(clean_df['Transaction Date'].min(), "to", clean_df["Transaction Date"].max())
 missing_dates = clean_df["Transaction Date"].isna().sum()
 
 print("\nMissing Transaction Date values after conversion:")
-print(clean_df['Transaction Date'].isna().sum())
+print(missing_dates)
 
 if missing_dates > 0:
     print("\nSample problematic date values:")
@@ -141,34 +152,30 @@ print("\n" + "=" * 60)
 print("Converting Numerical Columns")
 print("=" * 60)
 
-numeric_columns = [
-    'Price Per Unit', 
-    'Quantity', 
+numerical_columns = [
+    'Price Per Unit',
+    'Quantity',
     'Total Spent'
 ]
 
-for col in numeric_columns:
-    clean_df[col] = pd.to_numeric(
-        clean_df[col],
-        errors = 'coerce'
-)
+for col in numerical_columns:
+    clean_df[col] = pd.to_numeric(clean_df[col], errors = 'coerce')
 
-print("\nNumerical columns created.")
+print("\nNumerical columns converted.")
 print("\nData types after numerical conversion:")
-print(clean_df[numeric_columns].dtypes)
+print(clean_df[numerical_columns].dtypes)
 
 print("\nMissing values in numerical columns after conversion:")
-print(clean_df[numeric_columns].isnull().sum())
+print(clean_df[numerical_columns].isnull().sum())
 
 # =========================================================
-# CONVERT DISCOUNT APPLIED TO NULLABLE BOOLEAN
+# CLEAN DISCOUNT APPLIED
 # =========================================================
-
 print("\n" + "=" * 60)
 print("Converting Discount Applied")
 print("=" * 60)
 
-clean_df["Discount Applied"] = clean_df["Discount Applied"].map({
+clean_df["Discount Applied"] = clean_df['Discount Applied'].map({
     True: "Yes",
     False: "No",
     "True": "Yes",
@@ -177,20 +184,15 @@ clean_df["Discount Applied"] = clean_df["Discount Applied"].map({
 
 clean_df["Discount Applied"] = clean_df["Discount Applied"].fillna("Not Applicable")
 
-print("\nDiscount Applied converted.")
+print("\nDiscount Applied Converted.")
 print("\nValue counts after conversion:")
 print(clean_df["Discount Applied"].value_counts(dropna = False))
 
-print("\nDtype of Discount Applied:")
-print(clean_df["Discount Applied"].dtype)
+print("\nData type of Discount Applied:\n",clean_df["Discount Applied"].dtype)
 
 # =========================================================
 # RECONSTRUCT PRICE PER UNIT
 # =========================================================
-# If Price Per Unit is missing, but Total Spent and Quantity exist,
-# then we can safely compute:
-# Price Per Unit = Total Spent / Quantity
-
 print("\n" + "=" * 60)
 print("Reconstructing Missing Price Per Unit")
 print("=" * 60)
@@ -211,19 +213,15 @@ clean_df.loc[price_fill_mask, "Price Per Unit"] = (
     / clean_df.loc[price_fill_mask, "Quantity"]
 ).round(2)
 
-price_missing_after = clean_df["Price Per Unit"].isna().sum()
+price_missing_after = clean_df['Price Per Unit'].isna().sum()
 
 print(f"\nPrice Per Unit missing before: {price_missing_before}")
 print(f"Rows reconstructed: {reconstructed_price_count}")
 print(f"Price Per Unit missing after: {price_missing_after}")
 
 # =========================================================
-# RECONSTRUCT Quantity
+# RECONSTRUCT QUANTITY
 # =========================================================
-# If Quantity is missing, but Total Spent and Price Per Unit exist,
-# then we can safely compute:
-# Quantity = Total Spent / Price Per Unit
-
 print("\n" + "=" * 60)
 print("Reconstructing Missing Quantity")
 print("=" * 60)
@@ -242,12 +240,11 @@ candidate_quantity = (
     / clean_df.loc[quantity_fill_mask, "Price Per Unit"]
 )
 
-valid_quantity_index = np.isclose(candidate_quantity % 1, 0)
-
-valid_quantity_index = candidate_quantity[valid_quantity_index].index
+valid_quantity_mask = np.isclose(candidate_quantity % 1, 0)
+valid_quantity_index = candidate_quantity[valid_quantity_mask].index
 
 clean_df.loc[valid_quantity_index, "Quantity"] = (
-    candidate_quantity[valid_quantity_index].round()
+    candidate_quantity[valid_quantity_mask].round()
 )
 
 quantity_missing_after = clean_df["Quantity"].isna().sum()
@@ -258,14 +255,10 @@ print(f"Rows safely reconstructed: {len(valid_quantity_index)}")
 print(f"Quantity missing after: {quantity_missing_after}")
 
 # =========================================================
-# RECONSTRUCT Total Spent
+# RECONSTRUCT TOTAL SPENT
 # =========================================================
-# If Total Spent is missing, but Quantity and Price Per Unit exist,
-# then we can safely compute:
-# Total Spent = Price Per Unit * Quantity
-
 print("\n" + "=" * 60)
-print("RECONSTRUCTING MISSING TOTAL SPENT")
+print("Reconstructing Missing Total Spent")
 print("=" * 60)
 
 total_missing_before = clean_df["Total Spent"].isna().sum()
@@ -290,11 +283,8 @@ print(f"Rows reconstructed: {reconstructed_total_count}")
 print(f"Total Spent missing after: {total_missing_after}")
 
 # =========================================================
-# RECONSTRUCT ITEM USING CATEGORY + PRICE PER UNIT
+# RECONSTRUCT ITEM USING CATEGORY + PRICE PER UNIT 
 # =========================================================
-# We discovered from inspection that within this dataset,
-# Category + Price Per Unit uniquely identifies Item.
-
 print("\n" + "=" * 60)
 print("Reconstructing Missing Item Values")
 print("=" * 60)
@@ -307,10 +297,11 @@ item_lookup_df = (
     [["Category", "Price Per Unit", "Item"]]
 )
 
-item_lookup = {
-    (row["Category"], round(float(row["Price Per Unit"]), 2)): row["Item"]
-    for _, row in item_lookup_df.iterrows()
-}
+item_lookup = {}
+for _, row in item_lookup_df.iterrows():
+    key = (row["Category"], round(float(row["Price Per Unit"]), 2))
+    value = row["Item"]
+    item_lookup[key] = value
 
 item_fill_mask = (
     clean_df["Item"].isna()
@@ -334,12 +325,8 @@ print(f"Item missing after: {item_missing_after}")
 # =========================================================
 # DROP UNUSABLE ROWS
 # =========================================================
-# Rows missing Quantity or Total Spent cannot support revenue analysis,
-# sales aggregation, or ML target generation.
-# Also drop rows with invalid Transaction Date if any appear.
-
 print("\n" + "=" * 60)
-print("Dropping Unusable Rows")
+print("Dropping Unsuable Rows")
 print("=" * 60)
 
 print("\nRemaining missing values after all reconstructions:")
@@ -360,15 +347,13 @@ clean_df = clean_df.loc[~drop_mask].copy()
 
 rows_after_drop = len(clean_df)
 
-print(f"\nRows before dropping unusable rows: {rows_before_drop}")
+print(f"\nRows before dopping unsuable rows: {rows_before_drop}")
 print(f"Rows dropped: {rows_to_drop}")
 print(f"Rows after dropping unusable rows: {rows_after_drop}")
 
 # =========================================================
 # FINALIZE QUANTITY TYPE
 # =========================================================
-# Quantity is logically an integer count of units sold.
-
 print("\n" + "=" * 60)
 print("Finalizing Quantity Type")
 print("=" * 60)
@@ -384,9 +369,6 @@ print(clean_df["Quantity"].describe())
 # =========================================================
 # VALIDATE TOTAL SPENT
 # =========================================================
-# Validate:
-# Total Spent == Price Per Unit * Quantity
-
 print("\n" + "=" * 60)
 print("Validating Total Spent")
 print("=" * 60)
@@ -403,19 +385,39 @@ mismatch_count = (
 ).sum()
 
 print(f"\nRows checked for total validation: {validation_mask.sum()}")
-print(f"Total mismatches found: {mismatch_count}")
+print(f"Total mismatch count: {mismatch_count}")
+
+# =========================================================
+# REMOVE FLAG COLUMNS BEFORE LOADING TO SILVER
+# =========================================================
+print("\n" + "=" * 60)
+print("Removing Flag Columns")
+print("=" * 60)
+
+flag_columns = [
+    "item_missing_flag",
+    "price_missing_flag",
+    "quantity_missing_flag",
+    "total_missing_flag",
+    "discount_missing_flag"
+]
+
+clean_df.drop(columns = flag_columns, inplace = True)
+
+print("\nFlag columns removed.")
+print("Remaining columns:")
+print(clean_df.columns.tolist())
 
 # =========================================================
 # FINAL BEFORE VS AFTER SUMMARY
 # =========================================================
-
 print("\n" + "=" * 60)
 print("Before Vs After Summary")
 print("=" * 60)
 
 print("\nBefore cleaning")
 print(f"Shape: {df.shape}")
-print("\nMissing values:")
+print("\nMissing Values:")
 print(df.isnull().sum())
 print("\nData types:")
 print(df.dtypes)
@@ -424,7 +426,7 @@ print("\n" + "-" * 60)
 
 print("\nAfter cleaning")
 print(f"Shape: {clean_df.shape}")
-print("\nMissing values:")
+print("\nMissing Values:")
 print(clean_df.isnull().sum())
 print("\nData types:")
 print(clean_df.dtypes)
@@ -432,7 +434,6 @@ print(clean_df.dtypes)
 # =========================================================
 # FINAL INFO + DESCRIBE
 # =========================================================
-
 print("\n" + "=" * 60)
 print("Final Cleaned Data Preview")
 print("=" * 60)
@@ -451,15 +452,50 @@ for col in clean_df.columns:
     print(f"{col}: \t{clean_df[col].nunique(dropna = True)} unique values")
 
 # =========================================================
-# EXPORT CLEANED CSV
+# CREATE SILVER SCHEMA
 # =========================================================
-
 print("\n" + "=" * 60)
-print("Before Vs After Summary")
+print("Creating Silver Schema")
 print("=" * 60)
 
-cleaned_file_path = r"C:\Users\samba\OneDrive\Desktop\Data_Engineer\retail_store_sales_pipeline_project\01. data/cleaned_retail_store_sales.csv"
-clean_df.to_csv(cleaned_file_path, index = False)
+with engine.connect() as conn:
+    conn.execute(text("CREATE SCHEMA IF NOT EXISTS silver;"))
+    conn.commit()
 
-print(f"\nCleaned file saved successfully to: {cleaned_file_path}")
-print("\nData cleaning completed successfully")
+print("\nSilver schema ready.")
+
+# =========================================================
+# LOAD CLEAN DATA INTO SILVER
+# =========================================================
+print("\n" + "=" * 60)
+print("Loading Data Into Silver.cleaned_retail_sales")
+print("=" * 60)
+
+clean_df.to_sql(
+    name = "cleaned_retail_sales",
+    con = engine,
+    schema = "silver",
+    if_exists = "replace",
+    index = False
+)
+
+print("\nCleaned data loaded successfully into silver.cleaned_retail_sales")
+
+# =========================================================
+# VERIFY SILVER LOAD
+# =========================================================
+print("\n" + "=" * 60)
+print("Verifying Silver Load")
+print("=" * 60)
+
+verification_query = """
+SELECT COUNT(*) AS row_count
+FROM silver.cleaned_retail_sales
+"""
+
+verification_df = pd.read_sql(verification_query, engine)
+
+print("\nSilver table row count:")
+print(verification_df)
+
+print("\nSilver transformation completed successfully")

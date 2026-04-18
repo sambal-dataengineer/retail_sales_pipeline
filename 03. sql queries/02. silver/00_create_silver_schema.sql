@@ -1,0 +1,1 @@
+CREAT SCHEMA IF NOT EXISTS silver;
