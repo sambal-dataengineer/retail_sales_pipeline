@@ -1,0 +1,65 @@
+PROJECT SUMMARY — RETAIL SALES DATA PIPELINE
+=============================================
+
+GOAL:
+Build a complete, production-style data engineering pipeline for a retail
+business — from raw messy data to a business intelligence dashboard and
+machine learning revenue forecast.
+
+---
+
+DATA:
+- Source: Single CSV file (retail_store_sales.csv)
+- Columns: Transaction ID, Customer ID, Category, Item, Quantity,
+  Price Per Unit, Total Spent, Discount, Payment Method, Location,
+  Transaction Date
+- Contains real-world data quality issues (nulls, ERRORs, UNKNOWNs,
+  wrong types, inconsistent categories)
+
+---
+
+PIPELINE LAYERS:
+- Bronze: Raw CSV ingested into PostgreSQL as-is (no cleaning)
+- Silver: Data cleaned and validated using Python/pandas
+- Gold: Analytics-ready aggregation tables built using SQL
+- Power BI: 5-page interactive dashboard connected to Gold layer
+- ML: 3 regression models trained; best model forecasts future revenue
+
+---
+
+TOOLS USED:
+- Python (pandas, numpy, scikit-learn, xgboost, SQLAlchemy, psycopg2,
+  matplotlib, seaborn, joblib)
+- PostgreSQL with pgAdmin 4
+- Power BI Desktop
+- VS Code
+- Git + GitHub
+
+---
+
+OUTCOME:
+- A fully functional Bronze → Silver → Gold data warehouse in PostgreSQL
+- A 5-page Power BI dashboard with executive KPIs, category performance,
+  time trends, payment/location analysis, and customer insights
+- A trained XGBoost model that forecasts retail sales revenue
+- Best model and scaler saved as .joblib files for deployment
+- All model comparison metrics stored in outputs/model_comparison.csv
+
+---
+
+KEY MACHINE LEARNING RESULTS:
+- Best Model: XGBoost Regressor
+- MAE: [fill in from model_comparison.csv]
+- RMSE: [fill in from model_comparison.csv]
+- R² Score: [fill in from model_comparison.csv]
+- Models Compared: Linear Regression, Random Forest, XGBoost
+
+---
+
+THIS PROJECT DEMONSTRATES:
+- Data ingestion and multi-layer pipeline design (medallion architecture)
+- Data quality handling and transformation at scale
+- SQL-based data modelling and aggregation
+- Business intelligence dashboard design across 5 analytical pages
+- Machine learning for sales revenue forecasting
+- End-to-end project documentation and version control
