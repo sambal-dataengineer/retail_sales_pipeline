@@ -266,8 +266,6 @@ Three regression models were trained to predict **daily sales revenue** using fe
 | Random Forest        | 20.22 | 34.95 | 0.9606   |
 | **XGBoost** _(Best)_ | 16.47 | 26.94 | 0.9963   |
 
-> 📝 Fill in your actual values from `outputs/model_comparison.csv` after running the notebook.
-
 **Best Model:** XGBoost Regressor
 **Saved to:** `models/retail_sales_model.joblib`
 
